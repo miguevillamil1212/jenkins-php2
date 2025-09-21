@@ -3,16 +3,28 @@ version: '3.8'
 services:
   jenkins:
     container_name: jenkins-php
-    image: jenkins/jenkins:lts  # Última versión LTS (Java 17)
+    image: jenkins/jenkins:lts          # LTS (JDK 17)
+    user: root                           # Necesario para usar /var/run/docker.sock
     ports:
       - "8080:8080"
       - "50000:50000"
+    environment:
+      - TZ=America/Bogota               # (opcional) zona horaria
+      # - JAVA_OPTS=-Djava.awt.headless=true  # (opcional)
     volumes:
       - jenkins_data:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock   # Montar socket de Docker
-      - /usr/bin/docker:/usr/bin/docker             # Montar binario de Docker
-    user: root  # Ejecutar como root para permisos
+      # Acceso a Docker del host:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+      # Si tu host tiene docker en otra ruta, añade aquí el binario correcto:
+      # - /usr/local/bin/docker:/usr/local/bin/docker
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -fsS http://localhost:8080/login > /dev/null || true"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 volumes:
   jenkins_data:
