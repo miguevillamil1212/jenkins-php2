@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  jenkins:
+    container_name: jenkins-php
+    image: jenkins/jenkins:lts  # Última versión LTS (Java 17)
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock   # Montar socket de Docker
+      - /usr/bin/docker:/usr/bin/docker             # Montar binario de Docker
+    user: root  # Ejecutar como root para permisos
+    restart: unless-stopped
+
+volumes:
+  jenkins_data:
