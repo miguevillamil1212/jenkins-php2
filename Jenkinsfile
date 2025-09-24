@@ -1,15 +1,11 @@
 pipeline {
   agent any
   environment {
-    APP_NAME    = 'jenkins-php-web'
-    HOST_PORT   = '8081'
-    IMAGE_TAG   = "jenkins-php:${env.BUILD_NUMBER}"
-    DOCKER_HOST = 'tcp://host.docker.internal:2375'  // clave en Windows
+    APP_NAME  = 'jenkins-php-web'
+    HOST_PORT = '8081'
+    IMAGE_TAG = "jenkins-php:${env.BUILD_NUMBER}"
   }
-
-  options {
-    timestamps()  // <-- dejamos solo esto
-  }
+  options { timestamps() }
 
   stages {
     stage('Checkout') {
@@ -18,46 +14,29 @@ pipeline {
       }
     }
 
-    stage('Diagnóstico 2375') {
-      agent { docker { image 'curlimages/curl:8.10.1' } }
-      steps {
-        sh 'curl -fsS http://host.docker.internal:2375/_ping || (echo "Daemon Docker no responde en 2375" && exit 1)'
-      }
-    }
-
     stage('Build image') {
-      agent { docker { image 'docker:25.0-cli' } }
       steps {
-        sh '''
-          docker version || exit 1
-          docker build -t ${IMAGE_TAG} .
-          docker images | head -n 10
-        '''
+        bat 'docker version'
+        bat 'docker build -t %IMAGE_TAG% .'
       }
     }
 
     stage('Deploy container') {
-      agent { docker { image 'docker:25.0-cli' } }
       steps {
-        sh '''
-          docker ps -aq --filter "name=^/${APP_NAME}$" | xargs -r -I {} docker rm -f {}
-          docker run -d --name ${APP_NAME} -p ${HOST_PORT}:80 ${IMAGE_TAG}
-          docker ps --format "table {{.Names}}\\t{{.Image}}\\t{{.Ports}}"
-          sleep 2
-        '''
+        bat 'for /f %A in (\'docker ps -aq --filter "name=^/%APP_NAME%$"\') do docker rm -f %A'
+        bat 'docker run -d --name %APP_NAME% -p %HOST_PORT%:80 %IMAGE_TAG%'
+        bat 'docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Ports}}"'
       }
     }
 
     stage('Smoke test') {
-      agent { docker { image 'curlimages/curl:8.10.1' } }
       steps {
-        sh 'curl -fsS http://host.docker.internal:${HOST_PORT} >/dev/null || (echo "No responde en ${HOST_PORT}" && exit 1)'
+        bat 'powershell -Command "Invoke-WebRequest http://localhost:%HOST_PORT% -UseBasicParsing | Out-Null"'
       }
     }
   }
 
   post {
-    success { echo "OK → http://host.docker.internal:${HOST_PORT}" }
-    always  { echo "Fin del pipeline" }
+    success { echo "OK → http://localhost:%HOST_PORT%" }
   }
 }
